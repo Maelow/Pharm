@@ -9,27 +9,31 @@ from Pharm.items import PharmItem
 class CompendiumSpider(scrapy.Spider):
     name = "compendium"
     allowed_domains = ["compendium.com.ua"]
-    start_urls = (
-        'http://compendium.com.ua/makers',
-    )
+    start_urls = (                          # Scrapy will automatically
+        'http://compendium.com.ua/makers',  # retrieve this page for you and
+    )                                       # pass it to you parse() method
 
     def parse(self, response):
-        return self.parse_start_url(response)
+        # Let's retrieve links to all sub-pages using XPath query:
+        pages = Selector(response=response)\
+                    .xpath('//*[@id="src_top"]/div/div/a/@href')\
+                    .extract()
 
-    def parse_start_url(self, response):
-        # '//*[@id="src_top"]/div/div/a'
-        pages = Selector(response=response).xpath('//*[@id="src_top"]/div/div/a/@href').extract()
-
+        # Iterate over all pages and emit new request for each:
         for lnk in pages:
-            yield Request('{}{}'.format(self.start_urls[0], lnk), callback=self.retrieve_companies)
+            yield Request('http://{}{}'.format(self.allowed_domains[0], lnk),
+                          callback=self.retrieve_companies)  # Let Scrapy pass
+                                                             # response to
+                                                             # retrieve_companies()
+                                                             # method
 
     def retrieve_companies(self, response):
-        #import ipdb; ipdb.set_trace()
-        #print(response)
-        comps = Selector(response=response).xpath('//*[@id="green_wrap"]/table/tbody/tr/td/div/a').extract()
-        #print(comps)
+        comps = Selector(response=response)\
+                    .xpath('//*/a[@class="makers_list"]')
 
         for lnk in comps:
-            item = PharmItem(name=lnk.extract(), link=lnk.xpath('@href').extract())
-            #print(item)
+            # Built crawled item (company name + page link):
+            item = PharmItem(name=lnk.extract(),
+                             link=lnk.xpath('@href').extract())
+            # Emit this item to Scrapy midleware:
             yield item

@@ -29,11 +29,20 @@ class CompendiumSpider(scrapy.Spider):
 
     def retrieve_companies(self, response):
         comps = Selector(response=response)\
-                    .xpath('//*/a[@class="makers_list"]')
+                    .xpath('//*/a[@class="makers_list"]/@href')\
+                    .extract()
+                    
+        for lnk in comps:
+            yield Request('http://{}{}'.format(self.allowed_domains[0], lnk),
+                          callback=self.retrieve_preparats)
+                          
+                          
+            
+    def retrieve_preparats(self, response):
+        comps = Selector(response=response)\
+                    .xpath('//*/a[@class="preparat_list"]')
 
         for lnk in comps:
-            # Built crawled item (company name + page link):
             item = PharmItem(name=lnk.extract(),
-                             link=lnk.xpath('@href').extract())
-            # Emit this item to Scrapy midleware:
+                             link=lnk.xpath('@href').extract())        
             yield item
